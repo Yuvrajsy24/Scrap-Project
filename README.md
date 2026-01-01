@@ -12,7 +12,8 @@ Beginner → Intermediate level
 
 Very good for GitHub profile
 
-Looks real & useful, not copied
+
+Looks real & useful.
 
 🛠 Tech Stack
 
