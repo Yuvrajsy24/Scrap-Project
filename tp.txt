@@ -1,0 +1,41 @@
+
+
+[2:44] hours se baki k pages h toh wha stop 
+
+
+AI ARTICLE -
+BLOG TITLE-
+AI IAMGE -
+BACKGROUND REMOVAL-
+OBJECT RTEMOVAL-
+RESUME ANALYZEER-
+CODE GENERATOR-
+SUBTITLE CREATER-
+PPT MAKER-
+video geneartor-
+
+Hero.jsx 27] Add Watch Demo link
+
+to change review images in Testimonial.jsx image provide link
+
+library Client
+{npm react-markdown}
+{npm install react-syntax-highlighter}
+{npm install express dotenv cors axios cloudinary multer}
+{npm install --save-dev nodemon}
+{npm install axios}
+{npm install react-markdown}
+{npm install debug@4.3.4}
+npm install @tailwindcss/typography
+
+Server Library 
+{npm install @neondatabase/serverless dotenv}
+{npm install @clerk/express}
+{npm install openai}
+{npm install @google/generative-ai}
+{npm install axios }
+{npm install pdf-parse} 
+npm install @tailwindcss/typography
+sidebar.jsx imp
+
+5:46:40
