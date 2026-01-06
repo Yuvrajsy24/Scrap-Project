@@ -1,147 +1,123 @@
-📌 Project Name
+# Dev AI – Auth UI (Single File Demo)
 
-WebSnoop – Smart Web Scraper
-
-🎯 What this project does
-
-A Python-based web scraping tool that collects job listings from public job websites and saves them into a CSV file for easy analysis.
-
-This is:
-
-Beginner → Intermediate level
-
-Very good for GitHub profile
-
-
-Looks real & useful.
-
-🛠 Tech Stack
-
-Python
-
-requests
-
-BeautifulSoup
-
-pandas
-
-📂 Folder Structure
-WebSnoop/
-│
-├── scraper.py
-├── requirements.txt
-├── output/
-│   └── jobs.csv
-├── README.md
-└── .gitignore
-
-🧠 Human-Written README.md
-
-👉 Copy everything below and paste into README.md
-
-# 🕷️ WebSnoop – Smart Web Scraper
-
-WebSnoop is a simple and beginner-friendly web scraping project built using Python.  
-It scrapes job listings from public job websites and stores the extracted data in a CSV file for easy viewing and analysis.
-
-This project is created for **learning purposes**, focusing on how real-world data can be collected from the web in a clean and ethical way.
+A modern **authentication UI** built using **Next.js (App Router)**, **React**, and **Tailwind CSS**.  
+This project demonstrates a clean and responsive **Sign In / Sign Up** flow implemented in **one single file** for simplicity and portfolio showcasing.
 
 ---
 
 ## ✨ Features
 
-- Scrapes job titles, company names, and locations
-- Stores data in a structured CSV file
-- Clean and readable Python code
-- Easy to customize for other websites
-- Beginner-friendly project structure
+- ✅ Single-file implementation (`app/page.tsx`)
+- 🔐 Sign In & Sign Up toggle
+- 👁️ Show / hide password
+- 🔒 Password strength validation (Sign Up)
+- 🔑 OAuth UI buttons (Google & GitHub – UI only)
+- 🎨 Modern glassmorphism UI
+- 📱 Fully responsive design
+- ⚡ Built with Next.js App Router
 
 ---
 
-## 🛠 Technologies Used
+## 🧱 Tech Stack
 
-- Python 🐍  
-- Requests  
-- BeautifulSoup  
-- Pandas  
-
----
-
-## 📁 Project Structure
-
-
-
-WebSnoop/
-├── scraper.py
-├── requirements.txt
-├── output/
-│ └── jobs.csv
-├── README.md
-└── .gitignore
-
+- **Next.js 14+**
+- **React**
+- **TypeScript**
+- **Tailwind CSS**
+- **Lucide Icons**
+- **React Icons**
 
 ---
 
-## 🚀 How to Run the Project
+## 📁 Project Structure (Minimal)
 
-1. Clone the repository:
+app/
+└── page.tsx ← All logic & UI lives here
+README.md
+
+yaml
+Copy code
+
+---
+
+## ▶️ How to Run Locally
+
+### 1️⃣ Clone the repository
+
 ```bash
-git clone https://github.com/your-username/WebSnoop.git
+git clone https://github.com/<your-username>/<repo-name>.git
+cd <repo-name>
+2️⃣ Install dependencies
+bash
+Copy code
+npm install
+or
 
+bash
+Copy code
+pnpm install
+3️⃣ Start the development server
+bash
+Copy code
+npm run dev
+4️⃣ Open in browser
+arduino
+Copy code
+http://localhost:3000
+You will see the Sign In / Sign Up UI immediately.
 
-Navigate into the project folder:
+🔍 How Authentication Works (Demo)
+⚠️ This project is UI-only.
 
-cd WebSnoop
+No real authentication is implemented
 
+Form submission logs data to the console
 
-Install required dependencies:
+OAuth buttons are placeholders
 
-pip install -r requirements.txt
+This makes it ideal for:
 
+UI demos
 
-Run the scraper:
+Portfolio projects
 
-python scraper.py
+Interview showcases
 
+Future auth integration
 
-The scraped data will be saved inside the output/jobs.csv file.
+🚀 Future Improvements
+Integrate NextAuth / Clerk / Firebase
 
-📊 Sample Output
-Job Title	Company	Location
-Python Developer	ABC Tech	Bangalore
-Data Analyst	XYZ Solutions	Remote
-⚠️ Disclaimer
+Add real OAuth flows
 
-This project is made strictly for educational purposes.
-Please respect website terms of service and robots.txt rules.
-Do not overload servers with excessive requests.
+Backend API validation
 
-🙌 Author
+Loading & error states
 
-Yuvraj Singh
-Aspiring Developer | Learning by Building 🚀
+Unit tests
 
-If you like this project, feel free to ⭐ the repository!
+📸 Preview
+Clean glassmorphism UI with animated transitions
+Password strength indicators
+Responsive & accessible
 
+📄 License
+MIT License – free to use and modify.
+
+⭐ If you like this project, give it a star!
+yaml
+Copy code
 
 ---
 
-## 🔥 Why This Project Is GOOD for You
-- Looks **original**
-- Easy to explain in interviews
-- Helps earn **GitHub profile strength & trophies**
-- Can be upgraded later (database, UI, automation)
+## 👀 How YOU can see this project
 
----
+### ✅ Option 1: Run locally (BEST)
 
-### Want next?
-I can:
-- ✅ Write **scraper.py code**
-- ✅ Upgrade this to **advanced level**
-- ✅ Make a **second scraping project**
-- ✅ Optimize it for **GitHub trophies**
+```bash
+npm run dev
+Open:
 
-Just say:  
-**“give code”** or **“upgrade project”** 💻✨
-
-HELOOOOOOOOOOOOOOOOOOOOOOO..............MC
+arduino
+Copy code
+http://localhost:3000
