@@ -1,41 +1,65 @@
+⏱️ Progress Notes
 
+At 2:44 hours, remaining pages are left → stop work there
 
-[2:44] hours se baki k pages h toh wha stop 
+Total reference timestamp: 5:46:40
 
+🧠 AI Features / Pages
 
-AI ARTICLE -
-BLOG TITLE-
-AI IAMGE -
-BACKGROUND REMOVAL-
-OBJECT RTEMOVAL-
-RESUME ANALYZEER-
-CODE GENERATOR-
-SUBTITLE CREATER-
-PPT MAKER-
-video geneartor-
+AI Article Generator
 
-Hero.jsx 27] Add Watch Demo link
+Blog Title Generator
 
-to change review images in Testimonial.jsx image provide link
+AI Image Generator
 
-library Client
-{npm react-markdown}
-{npm install react-syntax-highlighter}
-{npm install express dotenv cors axios cloudinary multer}
-{npm install --save-dev nodemon}
-{npm install axios}
-{npm install react-markdown}
-{npm install debug@4.3.4}
+Background Removal
+
+Object Removal
+
+Resume Analyzer
+
+Code Generator
+
+Subtitle Creator
+
+PPT Maker
+
+Video Generator
+
+🎨 Frontend Tasks
+
+Hero.jsx
+
+Add “Watch Demo” link (line ~27)
+
+Testimonial.jsx
+
+Change review images
+
+Provide image URLs instead of local images
+
+Sidebar.jsx
+
+Important component (navigation / feature access)
+
+📦 Client-side Libraries
+npm install react-markdown
+npm install react-syntax-highlighter
+npm install axios
+npm install debug@4.3.4
 npm install @tailwindcss/typography
 
-Server Library 
-{npm install @neondatabase/serverless dotenv}
-{npm install @clerk/express}
-{npm install openai}
-{npm install @google/generative-ai}
-{npm install axios }
-{npm install pdf-parse} 
-npm install @tailwindcss/typography
-sidebar.jsx imp
 
-5:46:40
+Other client dependencies:
+
+npm install express dotenv cors axios cloudinary multer
+npm install --save-dev nodemon
+
+🖥️ Server-side Libraries
+npm install @neondatabase/serverless dotenv
+npm install @clerk/express
+npm install openai
+npm install @google/generative-ai
+npm install axios
+npm install pdf-parse
+npm install @tailwindcss/typography
