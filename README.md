@@ -11,7 +11,7 @@ This project demonstrates a clean and responsive **Sign In / Sign Up** flow impl
 - 🔐 Sign In & Sign Up toggle.
 - 🔒 Password strength validation (Sign Up).
 - 🔑 OAuth UI buttons (Google & GitHub – UI only)
-- 🎨 Modern glassmorphism UI
+- 🎨 Modern glassmorphism UI ..
 - 📱 Fully responsive .
 - ⚡ Built with Next.js App Router
 
