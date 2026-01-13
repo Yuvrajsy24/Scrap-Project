@@ -10,7 +10,7 @@ This project demonstrates a clean and responsive **Sign In / Sign Up** flow impl
 - ✅ Single-file implementation (`app/page.tsx`)
 - 🔐 Sign In & Sign Up toggle.
 - 🔒 Password strength validation (Sign Up).
-- 🔑 OAuth UI buttons (Google & GitHub – UI only)
+- 🔑 OAuth UI buttons (Google & GitHub – UI only).
 - 🎨 Modern glassmorphism UI ..
 - 📱 Fully responsive ..
 - ⚡ Built with Next.js App Router
