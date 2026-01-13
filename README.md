@@ -4,7 +4,7 @@ A modern **authentication UI** built using **Next.js (App Router)**, **React**, 
 This project demonstrates a clean and responsive **Sign In / Sign Up** flow implemented in **one single file** for simplicity and portfolio showcasing.
 
 ---
-
+  ...
 ## ✨ Features
 
 - ✅ Single-file implementation (`app/page.tsx`)
