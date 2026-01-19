@@ -14,11 +14,11 @@ This project demonstrates a clean and responsive **Sign In / Sign Up** flow impl
 - 🎨 Modern glassmorphism UI ...
 - 📱 Fully responsive ..
 - ⚡ Built with Next.js App Router
-..
+
 ----
 
-## 🧱 Tech Stack
-n
+## 🧱 Tech Stack.
+
 - **Next.js 14+**
 - **React**
 - **TypeScript**
