@@ -1,0 +1,1588 @@
+##BlogTitles.jsx
+import { useAuth } from '@clerk/clerk-react'
+import { Hash, Sparkles } from 'lucide-react'
+import React, { useState } from 'react'
+import toast from 'react-hot-toast'
+import Markdown from 'react-markdown'
+import axios from 'axios'
+
+axios.defaults.baseURL = import.meta.env.VITE_BASE_URL
+
+const BlogTitles = () => {
+  const blogCategories = [
+    'General',
+    'Technology',
+    'Business',
+    'Health',
+    'Lifestyle',
+    'Education',
+    'Travel',
+    'Food',
+  ]
+
+  const [selectedCategory, setSelectedCategory] = useState('General')
+  const [input, setInput] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [content, setContent] = useState('')
+
+  const { getToken } = useAuth()
+
+  const formatAITitles = (text) => {
+    if (!text) return ''
+    
+    const lines = text.split('\n').filter(line => line.trim())
+    const formattedLines = []
+    
+    lines.forEach(line => {
+      const trimmedLine = line.trim()
+      
+      // Check if line is likely a section header
+      const isHeader = 
+        trimmedLine.endsWith(':') ||
+        trimmedLine.toLowerCase().startsWith('for ') ||
+        trimmedLine.toLowerCase().includes('section') ||
+        trimmedLine.toLowerCase().includes('category') ||
+        (trimmedLine.length < 60 && !trimmedLine.includes('-') && !trimmedLine.includes('*'))
+      
+      // Check if line is likely a title (longer text)
+      const isTitle = 
+        trimmedLine.length > 30 ||
+        trimmedLine.includes('•') ||
+        trimmedLine.includes('- ') ||
+        trimmedLine.includes('* ') ||
+        (trimmedLine.length > 15 && !trimmedLine.includes(':') && !isHeader)
+      
+      // Handle numbered items
+      const isNumbered = /^\d+\.\s/.test(trimmedLine)
+      
+      if (isHeader) {
+        // Clean up header text
+        const cleanHeader = trimmedLine
+          .replace(/:/g, '')
+          .replace(/^(for|section|categories?)\s*/i, '')
+          .trim()
+        if (cleanHeader) {
+          formattedLines.push(`## ${cleanHeader}`)
+        }
+      } else if (isNumbered) {
+        // Convert numbered items to bullet points
+        const cleanTitle = trimmedLine.replace(/^\d+\.\s/, '')
+        formattedLines.push(`- ${cleanTitle}`)
+      } else if (isTitle) {
+        // Ensure it's a bullet point
+        const cleanTitle = trimmedLine.replace(/^[•\-*]\s*/, '')
+        formattedLines.push(`- ${cleanTitle}`)
+      } else if (trimmedLine) {
+        // Default fallback - keep as is
+        formattedLines.push(trimmedLine)
+      }
+    })
+    
+    // If formatting didn't produce clear sections, fall back to a simpler approach
+    if (formattedLines.length === 0 || formattedLines.every(line => line.startsWith('-'))) {
+      return lines
+        .map(line => {
+          const trimmed = line.trim()
+          if (trimmed.length > 40 && !trimmed.startsWith('-')) {
+            return `- ${trimmed}`
+          }
+          return trimmed
+        })
+        .filter(line => line)
+        .join('\n\n')
+    }
+    
+    return formattedLines.join('\n\n')
+  }
+
+  const onSubmitHandler = async (e) => {
+    e.preventDefault()
+    try {
+      setLoading(true)
+      const prompt = `Generate blog titles for "${input}" in the "${selectedCategory}" category.
+      Organize the output into clear sections with headings.
+      Each section should have 3-5 blog titles.
+      Use proper formatting with sections and bullet points.`
+
+      const { data } = await axios.post(
+        '/api/ai/generate-blog-title',
+        { prompt },
+        { headers: { Authorization: `Bearer ${await getToken()}` } }
+      )
+
+      if (data.success) {
+        const formattedContent = formatAITitles(data.content)
+        setContent(formattedContent)
+      } else {
+        toast.error(data.message)
+      }
+    } catch (error) {
+      toast.error(error.message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className="h-full overflow-y-auto p-8 flex items-start flex-wrap gap-8 text-slate-700 bg-gradient-to-br from-pink-50 via-white to-purple-50 transition-all duration-300">
+      <form
+        onSubmit={onSubmitHandler}
+        className="w-full max-w-lg p-8 bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-all duration-300 ease-out"
+      >
+        <div className="flex items-center gap-3 mb-4">
+          <Sparkles className="w-6 h-6 text-[#D946EF] animate-pulse" />
+          <h1 className="text-2xl font-semibold text-gray-800">
+            AI Blog Generator
+          </h1>
+        </div>
+
+        <label className="block mt-6 text-sm font-medium text-gray-700">
+          Keyword
+        </label>
+        <input
+          type="text"
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          className="w-full p-3 mt-2 text-sm rounded-lg border border-gray-300 outline-none placeholder:text-gray-400 focus:ring-2 focus:ring-[#D946EF] focus:border-[#D946EF] transition-all duration-200 ease-in-out"
+          placeholder="The Future of Artificial Intelligence..."
+          required
+        />
+
+        <p className="mt-6 text-sm font-medium text-gray-700">Category</p>
+        <div className="mt-3 flex gap-3 flex-wrap">
+          {blogCategories.map((item) => {
+            const isSelected = selectedCategory === item
+            return (
+              <span
+                key={item}
+                onClick={() => setSelectedCategory(item)}
+                className={`relative text-sm px-5 py-2 rounded-full border cursor-pointer select-none font-medium transition-all duration-300 ease-out transform ${
+                  isSelected
+                    ? 'bg-gradient-to-r from-[#EC4899]/20 to-[#8B5CF6]/20 text-[#8B5CF6] border-[#E9D5FF] shadow-inner scale-[1.03]'
+                    : 'bg-white/60 text-gray-700 border-gray-300 hover:bg-gradient-to-r hover:from-[#EC4899]/10 hover:to-[#8B5CF6]/10 hover:border-[#E9D5FF] hover:text-[#8B5CF6]'
+                }`}
+              >
+                {item}
+                {isSelected && (
+                  <span className="absolute inset-0 rounded-full bg-pink-400/10 blur-md animate-pulse pointer-events-none"></span>
+                )}
+              </span>
+            )
+          })}
+        </div>
+
+        <button
+          type="submit"
+          disabled={loading}
+          className="w-full flex justify-center items-center gap-2 bg-gradient-to-r from-[#EC4899] to-[#8B5CF6] text-white px-4 py-2.5 mt-8 text-sm font-medium rounded-lg shadow-md transition-all duration-300 ease-in-out hover:opacity-90 active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed"
+        >
+          {loading ? (
+            <span className="w-4 h-4 my-1 rounded-full border-2 border-t-transparent border-white animate-spin"></span>
+          ) : (
+            <Hash className="w-5" />
+          )}
+          Generate Title
+        </button>
+      </form>
+
+      <div className="w-full max-w-lg p-6 bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-all duration-300 ease-out min-h-96 flex flex-col">
+        <div className="flex items-center gap-3 mb-4">
+          <Hash className="w-5 h-5 text-[#D946EF]" />
+          <h1 className="text-xl font-semibold text-gray-800">
+            Generated Titles
+          </h1>
+        </div>
+
+        {!content ? (
+          <div className="flex-1 flex justify-center items-center">
+            <div className="text-sm flex flex-col items-center gap-5 text-gray-400 animate-fadeIn">
+              <Hash className="w-10 h-10 text-[#D946EF] opacity-70" />
+              <p className="text-center leading-relaxed">
+                Enter a topic and click{' '}
+                <span className="font-medium text-[#D946EF]">
+                  "Generate Title"
+                </span>{' '}
+                to get started.
+              </p>
+            </div>
+          </div>
+        ) : (
+          <div className="mt-3 h-full overflow-y-auto">
+            <div className="prose prose-sm max-w-none text-slate-700">
+              <Markdown>{content}</Markdown>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+export default BlogTitles
+
+##CodeGenerator.jsx
+import { Code, Sparkles } from 'lucide-react'
+import React, { useState } from 'react'
+
+const CodeGenerator = () => {
+  const languages = [
+    'JavaScript',
+    'Python',
+    'Java',
+    'C++',
+    'C#',
+    'TypeScript',
+    'Go',
+    'Rust',
+  ]
+
+  const [selectedLang, setSelectedLang] = useState('JavaScript')
+  const [input, setInput] = useState('')
+
+  const onSubmitHandler = async (e) => {
+    e.preventDefault()
+    // handle code generation logic here
+  }
+
+  return (
+    <div className="h-full overflow-y-auto p-8 flex items-start flex-wrap gap-8 text-slate-700 bg-gradient-to-br from-blue-50 via-white to-indigo-50 transition-all duration-300">
+      {/* Left Column */}
+      <form
+        onSubmit={onSubmitHandler}
+        className="w-full max-w-lg p-8 bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-all duration-300 ease-out"
+      >
+        {/* Header */}
+        <div className="flex items-center gap-3 mb-4">
+          <Sparkles className="w-6 h-6 text-indigo-500 animate-pulse" />
+          <h1 className="text-2xl font-semibold text-gray-800">
+            AI Code Generator
+          </h1>
+        </div>
+
+        {/* Prompt Input */}
+        <label className="block mt-6 text-sm font-medium text-gray-700">
+          Prompt
+        </label>
+        <input
+          type="text"
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          className="w-full p-3 mt-2 text-sm rounded-lg border border-gray-300 outline-none placeholder:text-gray-400 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 ease-in-out"
+          placeholder="Write a function to reverse a string..."
+          required
+        />
+
+        {/* Languages */}
+        <p className="mt-6 text-sm font-medium text-gray-700">Language</p>
+        <div className="mt-3 flex gap-3 flex-wrap">
+          {languages.map((item) => {
+            const isSelected = selectedLang === item
+            return (
+              <span
+                key={item}
+                onClick={() => setSelectedLang(item)}
+                className={`relative text-sm px-5 py-2 rounded-full border cursor-pointer select-none font-medium transition-all duration-300 ease-out transform ${
+                  isSelected
+                    ? 'bg-gradient-to-r from-blue-400/20 to-indigo-400/20 text-indigo-600 border-indigo-200 shadow-inner scale-[1.03]'
+                    : 'bg-white/60 text-gray-700 border-gray-300 hover:bg-gradient-to-r hover:from-blue-400/10 hover:to-indigo-400/10 hover:border-indigo-200 hover:text-indigo-600'
+                }`}
+              >
+                {item}
+                {isSelected && (
+                  <span className="absolute inset-0 rounded-full bg-blue-400/10 blur-md animate-pulse pointer-events-none"></span>
+                )}
+              </span>
+            )
+          })}
+        </div>
+
+        {/* Generate Button */}
+        <button
+          type="submit"
+          className="w-full flex justify-center items-center gap-2 bg-gradient-to-r from-blue-500 to-indigo-600 text-white px-4 py-2.5 mt-8 text-sm font-medium rounded-lg shadow-md transition-all duration-300 ease-in-out hover:opacity-90 active:scale-[0.98]"
+        >
+          <Code className="w-5" />
+          Generate Code
+        </button>
+      </form>
+
+      {/* Right Column */}
+      <div className="w-full max-w-lg p-6 bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-all duration-300 ease-out min-h-96 flex flex-col">
+        {/* Header */}
+        <div className="flex items-center gap-3 mb-4">
+          <Code className="w-5 h-5 text-indigo-500" />
+          <h1 className="text-xl font-semibold text-gray-800">Generated Code</h1>
+        </div>
+
+        {/* Placeholder */}
+        <div className="flex-1 flex justify-center items-center">
+          <div className="text-sm flex flex-col items-center gap-5 text-gray-400 animate-fadeIn">
+            <Code className="w-10 h-10 text-indigo-500 opacity-70" />
+            <p className="text-center leading-relaxed">
+              Enter a prompt and click{' '}
+              <span className="font-medium text-indigo-500">"Generate Code"</span>{' '}
+              to get started.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+export default CodeGenerator
+
+
+##Community.jsx
+import { useUser } from '@clerk/clerk-react'
+import React, { useEffect, useState } from 'react'
+import { dummyPublishedCreationData } from '../assets/assets'
+import { Heart } from 'lucide-react'
+
+const Community = () => {
+  const [creations, setCreations] = useState([])
+  const { user } = useUser()
+
+  const fetchCreations = async () => {
+    setCreations(dummyPublishedCreationData)
+  }
+
+  useEffect(() => {
+    if (user) {
+      fetchCreations()
+    }
+  }, [user])
+
+  const toggleLike = (index) => {
+    setCreations((prev) =>
+      prev.map((creation, i) => {
+        if (i === index) {
+          const hasLiked = creation.likes.includes(user?.id)
+          return {
+            ...creation,
+            likes: hasLiked
+              ? creation.likes.filter((id) => id !== user?.id)
+              : [...creation.likes, user?.id],
+          }
+        }
+        return creation
+      })
+    )
+  }
+
+  return (
+    <div className='flex-1 h-full flex flex-col gap-4 p-6'>
+      Creations
+      <div className='bg-white h-full w-full rounded-xl overflow-y-scroll'>
+        {creations.map((creation, index) => (
+          <div
+            key={index}
+            className='relative group inline-block pl-3 pt-3 w-full sm:max-w-1/2 lg:max-w-1/3'
+          >
+            <img
+              src={creation.content}
+              alt=''
+              className='w-full h-full object-cover rounded-lg'
+            />
+
+            <div
+              className='absolute bottom-0 top-0 left-3 flex gap-2 items-end justify-end group-hover:justify-between p-3
+              group-hover:bg-gradient-to-b from-transparent to-black/80 text-white rounded-lg'
+            >
+              <p className='text-sm hidden group-hover:block'>{creation.prompt}</p>
+              <div className='flex gap-1 items-center'>
+                <p>{creation.likes.length}</p>
+                <Heart
+                  onClick={() => toggleLike(index)}
+                  className={`min-w-5 h-5 hover:scale-110 cursor-pointer ${
+                    creation.likes.includes(user?.id)
+                      ? 'fill-red-500 text-red-600'
+                      : 'text-white'
+                  }`}
+                />
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+export default Community
+
+
+##Dashboard.jsx
+import React, { useEffect, useState } from 'react'
+import { dummyCreationData } from '../assets/assets'
+import { Sparkles, Gem } from 'lucide-react'
+import { Protect } from '@clerk/clerk-react'
+import Creationitem from '../components/Creationitem'
+
+const Dashboard = () => {
+
+  const [creations, setCreations] = useState([])
+
+  const getDashboardData = async () => {
+    setCreations(dummyCreationData)
+  }
+
+  useEffect(() => {
+    getDashboardData()
+  }, [])
+
+  return (
+    <div className="h-full overflow-y-scroll p-6 bg-[#F5F7FB]">
+      {/* === Top Cards Section === */}
+      <div className="flex flex-wrap gap-6">
+        
+        {/* Total Creations Card */}
+        <div className="flex justify-between items-center w-full sm:w-72 md:w-80 lg:w-80 xl:w-80 p-5 bg-white rounded-xl border border-gray-200 shadow-sm">
+          <div className="text-slate-600">
+            <p className="text-sm font-medium">Total Creations</p>
+            <h2 className="text-2xl font-semibold">{creations.length}</h2>
+          </div>
+          <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-[#3588F2] to-[#0BB0D7] flex justify-center items-center">
+            <Sparkles className="w-5 text-white" />
+          </div>
+        </div>
+
+        {/* Active Plan Card */}
+        <div className="flex justify-between items-center w-full sm:w-72 md:w-80 lg:w-80 xl:w-80 p-5 bg-white rounded-xl border border-gray-200 shadow-sm">
+          <div className="text-slate-600">
+            <p className="text-sm font-medium">Active Plan</p>
+            <h2 className="text-2xl font-semibold text-gray-800">
+              <Protect
+                condition={(check) => check.plan === 'Premium'}
+                fallback="Premium Plan"
+              >
+                Premium
+              </Protect>
+            </h2>
+          </div>
+          <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-[#C135F2] to-[#F20BA0] flex justify-center items-center">
+            <Gem className="w-5 text-white" />
+          </div>
+        </div>
+
+      </div>
+
+      {/* === Recent Creations Section === */}
+      <div className="mt-8">
+        <h3 className="text-slate-700 font-semibold mb-3">Recent Creations</h3>
+        {
+        creations.map((item)=> <Creationitem key={item.id} item={item}/>)}
+      </div>
+    </div>
+  )
+}
+
+export default Dashboard
+
+
+##GenerateImages.jsx
+import { Image, Sparkles } from 'lucide-react'
+import React, { useState } from 'react'
+import axios from 'axios'
+import { useAuth } from '@clerk/clerk-react'
+import toast from 'react-hot-toast'
+
+const api = axios.create({
+  baseURL: 'http://localhost:3000',
+  timeout: 120000,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+})
+
+
+const GenerateImages = () => {
+  const blogCategories = [
+    'Realistic',
+    'Ghibli Style',
+    'Anime Style',
+    'Cartoon Style',
+    'Fantasy Style',
+    '3D Style',
+    'Portrait Style',
+  ]
+
+  const [selectedStyle, setSelectedStyle] = useState('Realistic')
+  const [input, setInput] = useState('')
+  const [publish, setPublish] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [content, setContent] = useState('')
+
+  const { getToken } = useAuth()
+
+  const onSubmitHandler = async (e) => {
+    e.preventDefault()
+
+    if (!input.trim()) {
+      toast.error('Please describe the image')
+      return
+    }
+
+    try {
+      setLoading(true)
+      setContent('')
+
+      const token = await getToken()
+
+      if (!token) {
+        toast.error('Authentication failed. Please refresh and try again.')
+        return
+      }
+
+      const finalPrompt = `${input.trim()}, ${selectedStyle}`
+
+      const { data } = await api.post(
+        '/api/ai/generate-image',
+        {
+          prompt: finalPrompt,
+          publish,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      )
+
+      if (data?.success && data?.content) {
+        setContent(data.content)
+        toast.success('Image generated successfully')
+      } else {
+        toast.error(data?.message || 'Image generation failed')
+      }
+    } catch (error) {
+      if (error.response) {
+        if (error.response.status === 403) {
+          toast.error('Premium feature only. Please upgrade your plan.')
+        } else if (error.response.status === 400) {
+          toast.error(error.response.data?.message || 'Invalid request')
+        } else if (error.response.status === 401) {
+          toast.error('Please login again')
+        } else if (error.response.status === 429) {
+          toast.error('Rate limit exceeded. Please try again later.')
+        } else {
+          toast.error(error.response.data?.message || 'Server error')
+        }
+      } else {
+        toast.error('No response from server')
+      }
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className="h-full overflow-y-auto p-8 flex items-start flex-wrap gap-8 text-slate-700 bg-white">
+      <form
+        onSubmit={onSubmitHandler}
+        className="w-full max-w-lg p-8 bg-white rounded-xl border border-gray-200 shadow-sm"
+      >
+        <div className="flex items-center gap-3 mb-4">
+          <Sparkles className="w-6 h-6 text-[#00AD25]" />
+          <h1 className="text-2xl font-semibold text-gray-800">
+            AI Image Generator
+          </h1>
+        </div>
+
+        <label className="block mt-6 text-sm font-medium text-gray-700">
+          Describe Your Image
+        </label>
+        <textarea
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          rows={4}
+          className="w-full p-3 mt-2 text-sm rounded-lg border border-gray-300 outline-none focus:ring-2 focus:ring-[#00AD25]"
+          placeholder="Describe what you want to see in the image"
+          required
+        />
+
+        <p className="mt-6 text-sm font-medium text-gray-700">Style</p>
+        <div className="mt-3 flex gap-3 flex-wrap">
+          {blogCategories.map((item) => {
+            const isSelected = selectedStyle === item
+            return (
+              <span
+                key={item}
+                onClick={() => setSelectedStyle(item)}
+                className={`text-sm px-5 py-2 rounded-full border cursor-pointer transition ${
+                  isSelected
+                    ? 'bg-green-100 text-[#00AD25] border-[#00AD25]'
+                    : 'border-gray-300 text-gray-700 hover:border-[#00AD25]'
+                }`}
+              >
+                {item}
+              </span>
+            )
+          })}
+        </div>
+
+        <div className="my-6 flex items-center gap-2">
+          <label className="relative cursor-pointer">
+            <input
+              type="checkbox"
+              checked={publish}
+              onChange={(e) => setPublish(e.target.checked)}
+              className="sr-only peer"
+            />
+            <div className="w-9 h-5 bg-slate-300 rounded-full peer-checked:bg-green-500 transition"></div>
+            <span className="absolute left-1 top-1 w-3 h-3 bg-white rounded-full transition peer-checked:translate-x-4"></span>
+          </label>
+          <p className="text-sm">Make This Image Public</p>
+        </div>
+
+        <button
+          type="submit"
+          disabled={loading}
+          className="w-full flex justify-center items-center gap-2 bg-gradient-to-r from-[#00AD25] to-[#04FF50] text-white px-4 py-2 mt-6 text-sm rounded-lg disabled:opacity-70"
+        >
+          {loading ? (
+            <span className="w-4 h-4 my-1 rounded-full border-2 border-white border-t-transparent animate-spin"></span>
+          ) : (
+            <Image className="w-5" />
+          )}
+          Generate Image
+        </button>
+      </form>
+
+      <div className="w-full max-w-lg p-6 bg-white rounded-xl border border-gray-200 shadow-sm min-h-96 flex flex-col">
+        <div className="flex items-center gap-3 mb-4">
+          <Image className="w-5 h-5 text-[#00AD25]" />
+          <h1 className="text-xl font-semibold text-gray-800">
+            Generated Image
+          </h1>
+        </div>
+
+        {!content ? (
+          <div className="flex-1 flex justify-center items-center">
+            {loading ? (
+              <span className="w-9 h-9 rounded-full border-4 border-[#00AD25] border-t-transparent animate-spin"></span>
+            ) : (
+              <div className="text-sm flex flex-col items-center gap-5 text-gray-400">
+                <Image className="w-9 h-9" />
+                <p className="text-center">
+                  Enter a description and click Generate Image
+                </p>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="mt-3 flex-1 flex flex-col">
+            <img
+              src={content}
+              alt="Generated"
+              className="w-full h-auto max-h-[400px] object-contain rounded-lg mb-4"
+            />
+            <div className="mt-4 p-3 bg-gray-50 rounded-lg">
+              <p className="text-sm text-gray-600 mb-2">Image URL</p>
+              <code className="text-xs text-gray-800 break-all">
+                {content}
+              </code>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+export default GenerateImages
+
+
+##Home.jsx
+import React from 'react'
+import Navbar from '../components/Navbar'
+import Hero from '../components/Hero'
+import AiTools from '../components/AiTools'
+import Testimonial from '../components/Testimonial'
+import Plan from '../components/Plan'
+import Footer from '../components/Footer'
+
+const Home = () => {
+  return (
+    <>
+    <Navbar/>
+    <Hero />
+    <AiTools/>
+    <Testimonial />
+    <Plan />
+    <Footer/>
+  </>
+  )
+}
+
+export default Home
+
+
+##Layout.jsx
+import React, { useState } from 'react'
+import { Outlet, useNavigate } from 'react-router-dom'
+import { assets } from '../assets/assets'
+import { Menu, X } from 'lucide-react'
+import Sidebar from '../components/Sidebar'
+import { SignIn, useUser } from '@clerk/clerk-react'
+
+const Layout = () => {
+  const navigate = useNavigate()
+  const [sidebar, setSidebar] = useState(true)
+  const { user } = useUser()
+
+  return user ? (
+    <div className="flex flex-col min-h-screen bg-[#F4F7FB]">
+
+      {/* Top Navbar */}
+      <nav className="w-full px-6 py-3 flex items-center justify-between border-b border-gray-200 bg-white shadow-sm fixed top-0 left-0 right-0 z-50">
+        <img
+          src={assets.logo}
+          alt="Quick.ai logo"
+          className="h-8 cursor-pointer"
+          onClick={() => navigate('/')}
+        />
+
+        {/* hamburger only visible on small screens */}
+        {sidebar ? (
+          <X
+            className="w-6 h-6 text-gray-600 sm:hidden cursor-pointer"
+            onClick={() => setSidebar(false)}
+          />
+        ) : (
+          <Menu
+            className="w-6 h-6 text-gray-600 sm:hidden cursor-pointer"
+            onClick={() => setSidebar(true)}
+          />
+        )}
+      </nav>
+
+      {/* Main Layout */}
+      <div className="flex flex-1 w-full pt-[64px]">
+        {/* Sidebar */}
+        <Sidebar sidebar={sidebar} setSidebar={setSidebar} />
+
+        {/* Main Content */}
+        <div className="flex-1 sm:ml-72 ml-0 overflow-y-auto px-4 py-6">
+          <Outlet />
+        </div>
+      </div>
+    </div>
+  ) : (
+    <div className="flex items-center justify-center h-screen bg-white">
+      <SignIn />
+    </div>
+  )
+}  
+
+export default Layout
+
+
+##PPTMaker.jsx
+import { FileText, Sparkles } from "lucide-react";
+import React, { useState } from "react";
+
+const PPTMaker = () => {
+  const pptThemes = [
+    "Professional",
+    "Minimal",
+    "Dark Theme",
+    "Corporate",
+    "Colorful",
+    "Modern",
+    "Elegant",
+    "Creative",
+  ];
+
+  const [selectedTheme, setSelectedTheme] = useState("Professional");
+  const [input, setInput] = useState("");
+
+  const onSubmitHandler = async (e) => {
+    e.preventDefault();
+    // PPT generation logic here
+  };
+
+  return (
+    <div className="h-full overflow-y-auto p-8 flex items-start flex-wrap gap-8 text-slate-700 bg-white transition-all duration-300">
+      {/* Left Column */}
+      <form
+        onSubmit={onSubmitHandler}
+        className="w-full max-w-lg p-8 bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-all duration-300 ease-out"
+      >
+        {/* Header */}
+        <div className="flex items-center gap-3 mb-4">
+          <Sparkles className="w-6 h-6 text-[#FF8A00] animate-pulse" />
+          <h1 className="text-2xl font-semibold text-gray-800">
+            AI PPT Generator
+          </h1>
+        </div>
+
+        {/* Input */}
+        <label className="block mt-6 text-sm font-medium text-gray-700">
+          Enter Topic for PPT
+        </label>
+        <textarea
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          rows={4}
+          className="w-full p-3 mt-2 text-sm rounded-lg border border-gray-300 outline-none placeholder:text-gray-400 focus:ring-2 focus:ring-[#FF8A00] focus:border-[#FF8A00] transition-all duration-200"
+          placeholder="Explain the topic or content you want in the presentation..."
+          required
+        />
+
+        {/* Themes */}
+        <p className="mt-6 text-sm font-medium text-gray-700">Theme</p>
+        <div className="mt-3 flex gap-3 flex-wrap">
+          {pptThemes.map((item) => {
+            const isSelected = selectedTheme === item;
+            return (
+              <span
+                key={item}
+                onClick={() => setSelectedTheme(item)}
+                className={`relative text-sm px-5 py-2 rounded-full border cursor-pointer select-none font-medium capitalize transition-all duration-300 ${
+                  isSelected
+                    ? "bg-gradient-to-r from-[#FF8A00]/20 to-[#FFB347]/20 text-[#FF8A00] border-[#FF8A00] shadow-inner scale-[1.03]"
+                    : "bg-white/60 text-gray-700 border-gray-300 hover:bg-gradient-to-r hover:from-[#FF8A00]/10 hover:to-[#FFB347]/10 hover:border-[#FF8A00]/40 hover:text-[#FF8A00]"
+                }`}
+              >
+                {item}
+                {isSelected && (
+                  <span className="absolute inset-0 rounded-full bg-orange-400/10 blur-md animate-pulse pointer-events-none"></span>
+                )}
+              </span>
+            );
+          })}
+        </div>
+
+        <button
+          type="submit"
+          className="w-full flex justify-center items-center gap-2 bg-gradient-to-r from-[#FF8A00] to-[#FFB347] text-white px-4 py-2.5 mt-8 text-sm font-medium rounded-lg shadow-md hover:opacity-90 active:scale-[0.98]"
+        >
+          <FileText className="w-5" />
+          Generate PPT
+        </button>
+      </form>
+
+      {/* Right Column */}
+      <div className="w-full max-w-lg p-6 bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md min-h-96 flex flex-col">
+        <div className="flex items-center gap-3 mb-4">
+          <FileText className="w-5 h-5 text-[#FF8A00]" />
+          <h1 className="text-xl font-semibold text-gray-800">Generated PPT</h1>
+        </div>
+
+        <div className="flex-1 flex justify-center items-center">
+          <div className="text-sm flex flex-col items-center gap-5 text-gray-400 animate-fadeIn">
+            <FileText className="w-10 h-10 text-[#FF8A00] opacity-70" />
+            <p className="text-center leading-relaxed">
+              Enter details and click{" "}
+              <span className="font-medium text-[#FF8A00]">"Generate PPT"</span>{" "}
+              to begin.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default PPTMaker;
+
+
+##RemoveBackground.jsx
+import { Eraser, Sparkles } from 'lucide-react'
+import React, { useState } from 'react'
+
+const RemoveBackground = () => {
+  const [input, setInput] = useState('')
+  
+  const onSubmitHandler = async (e) => {
+    e.preventDefault()
+    if (!input) {
+      alert('Please upload an image first.')
+      return
+    }
+    // handle background removal logic here
+  }
+
+  return (
+    <div className="h-full overflow-y-auto p-8 flex items-start flex-wrap gap-8 text-slate-700 bg-gradient-to-br from-white via-white to-white transition-all duration-300">
+      {/* Left Column */}
+      <form
+        onSubmit={onSubmitHandler}
+        className="w-full max-w-lg p-8 bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-all duration-300 ease-out"
+      >
+        {/* Header */}
+        <div className="flex items-center gap-3 mb-4">
+          <Sparkles className="w-6 h-6 text-[#FF4938] animate-pulse" />
+          <h1 className="text-2xl font-semibold text-gray-800">
+            Background Removal
+          </h1>
+        </div>
+
+        {/* Upload Input */}
+        <label className="block mt-6 text-sm font-medium text-gray-700">
+          Upload image
+        </label>
+        <input
+          type="file"
+          accept="image/*"
+          onChange={(e) => setInput(e.target.files[0] || null)}
+          className="w-full p-3 mt-2 text-sm rounded-lg border border-gray-300 outline-none text-gray-700 placeholder:text-gray-500 focus:ring-2 focus:ring-[#FF7A29] focus:border-[#FF7A29] transition-all duration-200 ease-in-out"
+          required
+        />
+        <p className="text-xs text-gray-500 font-light mt-1">
+          Supports JPG, PNG, and other image formats
+        </p>
+
+        {/* Remove Button */}
+        <button
+          type="submit"
+          className="w-full flex justify-center items-center gap-2 bg-gradient-to-r from-[#F6AB41] to-[#FF4938] text-white px-4 py-2.5 mt-8 text-sm font-medium rounded-lg shadow-md transition-all duration-300 ease-in-out hover:opacity-90 active:scale-[0.98]"
+        >
+          <Eraser className="w-5" />
+          Remove Background
+        </button>
+      </form>
+
+      {/* Right Column */}
+      <div className="w-full max-w-lg p-6 bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-all duration-300 ease-out min-h-96 flex flex-col">
+        {/* Header */}
+        <div className="flex items-center gap-3 mb-4">
+          <Eraser className="w-5 h-5 text-[#FF4938]" />
+          <h1 className="text-xl font-semibold text-gray-800">
+            Processed Image
+          </h1>
+        </div>
+
+        {/* Placeholder */}
+        <div className="flex-1 flex justify-center items-center">
+          <div className="text-sm flex flex-col items-center gap-5 text-gray-400 animate-fadeIn">
+            <Eraser className="w-10 h-10 text-[#FF4938] opacity-70" />
+            <p className="text-center leading-relaxed">
+              Upload an image and click{' '}
+              <span className="font-medium text-[#FF4938]">
+                "Remove Background"
+              </span>{' '}
+              to get started.
+            </p>
+          </div>
+          </div>  
+      </div>
+      </div>
+    
+  )
+}
+
+export default RemoveBackground
+
+
+##RemoveObject.jsx
+import { Scissors, Sparkles } from 'lucide-react'
+import React, { useState } from 'react'
+
+const RemoveObject = () => {
+    const [input, setInput] = useState('')
+    const [object, setObject ] = useState('')
+  
+  const onSubmitHandler = async (e) => {
+    e.preventDefault()
+    if (!input) {
+      alert('Please upload an image first.')
+      return
+    }
+    // handle background removal logic here
+  }
+  return (
+    <div className="h-full overflow-y-auto p-8 flex items-start flex-wrap gap-8 text-slate-700 bg-gradient-to-br from-white via-white to-white transition-all duration-300">
+      {/* Left Column */}
+      <form
+        onSubmit={onSubmitHandler}
+        className="w-full max-w-lg p-8 bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-all duration-300 ease-out"
+      >
+        {/* Header */}
+        <div className="flex items-center gap-3 mb-4">
+          <Sparkles className="w-6 h-6 text-[#4A7AFF] animate-pulse" />
+          <h1 className="text-2xl font-semibold text-gray-800">
+            Object Removal
+          </h1>
+        </div>
+
+        {/* Upload Input */}
+        <label className="block mt-6 text-sm font-medium text-gray-700">
+          Upload image
+        </label>
+        <input
+          type="file"
+          accept="image/*"
+          onChange={(e) => setInput(e.target.files[0])}
+          className="w-full p-3 mt-2 text-sm rounded-lg border border-gray-300 outline-none text-gray-700 placeholder:text-gray-500 focus:ring-2 focus:ring-[#FF7A29] focus:border-[#FF7A29] transition-all duration-200 ease-in-out"
+          required
+        />
+        <p className='mt-6 text-sm font-medium'>Describe object name to remove</p>
+
+        <textarea onChange={(e)=>setObject(e.target.value)} value={object} rows={4}
+        className='w-full p-2 px-3 mt-2 outline-none text-sm rounded-md border
+        border-gray-300'  placeholder='e.g., watch or spoon , only single object name'
+        ruequired/>
+
+        {/* Remove Button */}
+        <button
+          type="submit"
+          className="w-full flex justify-center items-center gap-2 bg-gradient-to-r from-[#417DF6] to-[#8E37EB] text-white px-4 py-2.5 mt-8 text-sm font-medium rounded-lg shadow-md transition-all duration-300 ease-in-out hover:opacity-90 active:scale-[0.98]"
+        >
+          <Scissors
+          className="w-5" />
+          Remove object
+        </button>
+      </form>
+
+      {/* Right Column */}
+      <div className="w-full max-w-lg p-6 bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-all duration-300 ease-out min-h-96 flex flex-col">
+        {/* Header */}
+        <div className="flex items-center gap-3 mb-4">
+          <Scissors className="w-5 h-5 text-[#4A7AFF]" />
+          <h1 className="text-xl font-semibold text-gray-800">
+            Processed Image
+          </h1>
+        </div>
+
+        {/* Placeholder */}
+        <div className="flex-1 flex justify-center items-center">
+          <div className="text-sm flex flex-col items-center gap-5 text-gray-400 animate-fadeIn">
+            <Scissors className="w-10 h-10 text-[#4A7AFF] opacity-70" />
+            <p className="text-center leading-relaxed">
+              Upload an image and click{' '}
+              <span className="font-medium text-[#4A7AFF]">
+                "Remove Object"
+              </span>{' '}
+              to get started.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+export default RemoveObject
+
+
+##ReviewResume.jsx
+import { FileText, Scissors, Sparkles } from 'lucide-react'
+import React, { useState } from 'react'
+
+const ReviewResume = () => {
+    const [input, setInput] = useState('')
+    
+    const onSubmitHandler = async (e) => {
+      e.preventDefault()
+      if (!input) {
+        alert('Please upload an image first.')
+        return
+      }
+      // handle background removal logic here
+    }
+  return (
+      <div className="h-full overflow-y-auto p-8 flex items-start flex-wrap gap-8 text-slate-700 bg-gradient-to-br from-white via-white to-white transition-all duration-300">
+      {/* Left Column */}
+      <form
+        onSubmit={onSubmitHandler}
+        className="w-full max-w-lg p-8 bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-all duration-300 ease-out"
+      >
+        {/* Header */}
+        <div className="flex items-center gap-3 mb-4">
+          <Sparkles className="w-6 h-6 text-[#00DA83] animate-pulse" />
+          <h1 className="text-2xl font-semibold text-gray-800">
+            Resume Review
+          </h1>
+        </div>
+
+        {/* Upload Input */}
+        <label className="block mt-6 text-sm font-medium text-gray-700">
+          Upload Resume
+        </label>
+        <input
+          type="file"
+          accept="application/pdf*"
+          onChange={(e) => setInput(e.target.files[0] )}
+          className="w-full p-3 mt-2 text-sm rounded-lg border border-gray-300 outline-none text-gray-700 placeholder:text-gray-500 focus:ring-2 focus:ring-[#FF7A29] focus:border-[#FF7A29] transition-all duration-200 ease-in-out"
+          required
+        />
+        <p className="text-xs text-gray-500 font-light mt-1">
+          Supports PDF Resume Only.
+        </p>
+
+        {/* Remove Button */}
+        <button
+          type="submit"
+          className="w-full flex justify-center items-center gap-2 bg-gradient-to-r from-[#F6AB41] to-[#FF4938] text-white px-4 py-2.5 mt-8 text-sm font-medium rounded-lg shadow-md transition-all duration-300 ease-in-out hover:opacity-90 active:scale-[0.98]"
+        >
+          <FileText className="w-5" />
+          Review Resume
+        </button>
+      </form>
+
+      {/* Right Column */}
+      <div className="w-full max-w-lg p-6 bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-all duration-300 ease-out min-h-96 flex flex-col">
+        {/* Header */}
+        <div className="flex items-center gap-3 mb-4">
+          <FileText className="w-5 h-5 text-[#00DA83]" />
+          <h1 className="text-xl font-semibold text-gray-800">
+            Analysis Results
+          </h1>
+        </div>
+
+        {/* Placeholder */}
+        <div className="flex-1 flex justify-center items-center">
+          <div className="text-sm flex flex-col items-center gap-5 text-gray-400 animate-fadeIn">
+            <Scissors className="w-10 h-10 text-[00DA83] opacity-70" />
+            <p className="text-center leading-relaxed">
+              Upload an resume  and click{' '}
+              <span className="font-medium text-[00DA83]">
+                "Review Resume"
+              </span>{' '}
+              to get started.
+            </p>
+          </div>
+          </div>  
+      </div>
+      </div>
+  )
+}
+
+export default ReviewResume
+
+
+##SubtitleGeneraate.jsx
+import { Subtitles, Sparkles } from "lucide-react";
+import React, { useState } from "react";
+
+const SubtitleGenerate = () => {
+  const [input, setInput] = useState("");
+  const [style, setStyle] = useState("Simple");
+
+  const subtitleStyles = [
+    "Simple",
+    "Cinematic",
+    "Bold",
+    "Minimal",
+    "Dynamic",
+  ];
+
+  const onSubmitHandler = async (e) => {
+    e.preventDefault();
+    // subtitle generation logic here
+  };
+
+  return (
+    <div className="h-full overflow-y-auto p-8 flex items-start flex-wrap gap-8 text-slate-700 bg-white transition-all duration-300">
+      {/* Left Column */}
+      <form
+        onSubmit={onSubmitHandler}
+        className="w-full max-w-lg p-8 bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-all duration-300 ease-out"
+      >
+        {/* Header */}
+        <div className="flex items-center gap-3 mb-4">
+          <Sparkles className="w-6 h-6 text-orange-500 animate-pulse" />
+          <h1 className="text-2xl font-semibold text-gray-800">
+            AI Subtitle Generator
+          </h1>
+        </div>
+
+        {/* Input */}
+        <label className="block mt-6 text-sm font-medium text-gray-700">
+          Video Dialogue / Audio Text
+        </label>
+        <textarea
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          rows={4}
+          className="w-full p-3 mt-2 text-sm rounded-lg border border-gray-300 outline-none placeholder:text-gray-400 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-200"
+          placeholder="Enter the spoken content..."
+          required
+        />
+
+        {/* Subtitle Styles */}
+        <p className="mt-6 text-sm font-medium text-gray-700">
+          Subtitle Style
+        </p>
+        <div className="mt-3 flex gap-3 flex-wrap">
+          {subtitleStyles.map((item) => {
+            const isSelected = style === item;
+            return (
+              <span
+                key={item}
+                onClick={() => setStyle(item)}
+                className={`relative text-sm px-5 py-2 rounded-full border cursor-pointer select-none font-medium capitalize transition-all duration-300 ${
+                  isSelected
+                    ? "bg-gradient-to-r from-orange-300/30 to-amber-300/30 text-orange-600 border-orange-500 shadow-inner scale-[1.03]"
+                    : "bg-white/60 text-gray-700 border-gray-300 hover:bg-gradient-to-r hover:from-orange-300/10 hover:to-amber-300/10 hover:border-orange-400 hover:text-orange-600"
+                }`}
+              >
+                {item}
+                {isSelected && (
+                  <span className="absolute inset-0 rounded-full bg-orange-400/10 blur-md animate-pulse pointer-events-none"></span>
+                )}
+              </span>
+            );
+          })}
+        </div>
+
+        {/* Generate Button */}
+        <button
+          type="submit"
+          className="w-full flex justify-center items-center gap-2 bg-gradient-to-r from-orange-500 to-amber-500 text-white px-4 py-2.5 mt-8 text-sm font-medium rounded-lg shadow-md hover:opacity-90 active:scale-[0.98]"
+        >
+          <Subtitles className="w-5" />
+          Generate Subtitles
+        </button>
+      </form>
+
+      {/* Right Column */}
+      <div className="w-full max-w-lg p-6 bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md min-h-96 flex flex-col">
+        <div className="flex items-center gap-3 mb-4">
+          <Subtitles className="w-5 h-5 text-orange-500" />
+          <h1 className="text-xl font-semibold text-gray-800">
+            Generated Subtitles
+          </h1>
+        </div>
+
+        <div className="flex-1 flex justify-center items-center">
+          <div className="text-sm flex flex-col items-center gap-5 text-gray-400 animate-fadeIn">
+            <Subtitles className="w-10 h-10 text-orange-400 opacity-70" />
+            <p className="text-center leading-relaxed max-w-xs">
+              Enter dialogue text and choose a style to generate clean,
+              well-formatted subtitles.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default SubtitleGenerate;
+
+
+##WriteArticle.jsx
+import { Edit, Sparkles } from 'lucide-react'
+import React, { useState } from 'react'
+import axios from 'axios'
+import { useAuth } from '@clerk/clerk-react'
+import toast from 'react-hot-toast'
+import Markdown from 'react-markdown'
+
+const BASE_URL = import.meta.env.VITE_BASE_URL || 'http://localhost:3000'
+
+const WriteArticle = () => {
+  const articleLength = [
+    { length: 800, text: 'Short (500-800 words)' },
+    { length: 1200, text: 'Medium (800-1200 words)' },
+    { length: 1600, text: 'Long (1200+ words)' },
+  ]
+
+  const [selectedLength, setSelectedLength] = useState(articleLength[0])
+  const [input, setInput] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [content, setContent] = useState('')
+
+  const { getToken, isSignedIn } = useAuth()
+
+  const onSubmitHandler = async (e) => {
+    e.preventDefault()
+
+    if (!isSignedIn) {
+      toast.error('Please sign in to generate articles')
+      return
+    }
+
+    if (loading) return
+    if (input.trim().length < 3) {
+      toast.error('Please enter a valid topic (minimum 3 characters)')
+      return
+    }
+
+    try {
+      setLoading(true)
+      setContent('')
+
+      console.log('Getting token...')
+      const token = await getToken()
+      console.log('Token received:', token ? 'Yes' : 'No')
+      
+      if (!token) {
+        throw new Error('Authentication token not found. Please sign in again.')
+      }
+
+      console.log('Sending request to:', `${BASE_URL}/api/ai/generate-article`)
+      
+      const { data } = await axios.post(
+        '/api/ai/generate-article',
+        { 
+          prompt: input, 
+          length: selectedLength.length 
+        },
+        {
+          baseURL: BASE_URL,
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          timeout: 60000,
+        }
+      )
+
+      console.log('Response received:', data)
+
+      if (!data?.success) {
+        throw new Error(data?.message || 'Article generation failed')
+      }
+
+      if (!data.content || data.content.trim().length === 0) {
+        throw new Error('Received empty content from server')
+      }
+
+      setContent(data.content)
+      toast.success('Article generated successfully!')
+      
+    } catch (error) {
+      console.error('Error generating article:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status
+      })
+      
+      let errorMessage = 'Failed to generate article'
+      
+      if (error.response?.status === 401) {
+        errorMessage = 'Authentication failed. Please sign in again.'
+      } else if (error.response?.status === 402) {
+        errorMessage = 'Free usage limit reached. Please upgrade to premium.'
+      } else if (error.response?.data?.message) {
+        errorMessage = error.response.data.message
+      } else if (error.message) {
+        errorMessage = error.message
+      }
+      
+      toast.error(errorMessage)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const testAuth = async () => {
+    try {
+      const token = await getToken()
+      const response = await axios.get(`${BASE_URL}/api/auth/public-test`)
+      console.log('Public test:', response.data)
+      
+      if (token) {
+        const protectedResponse = await axios.get(`${BASE_URL}/api/auth/protected-test`, {
+          headers: { Authorization: `Bearer ${token}` }
+        })
+        console.log('Protected test:', protectedResponse.data)
+      }
+    } catch (error) {
+      console.error('Auth test failed:', error)
+    }
+  }
+
+  return (
+    <div className="h-full overflow-y-scroll p-6 flex items-start flex-wrap gap-4 text-slate-700">
+      <div className="w-full mb-4">
+        <button 
+          onClick={testAuth}
+          className="px-4 py-2 bg-gray-200 text-sm rounded hover:bg-gray-300"
+        >
+          Test Authentication
+        </button>
+      </div>
+      
+      <form
+        onSubmit={onSubmitHandler}
+        className="w-full max-w-lg p-4 bg-white rounded-lg border border-gray-200"
+      >
+        <div className="flex items-center gap-3">
+          <Sparkles className="w-6 text-[#4A7AFF]" />
+          <h1 className="text-xl font-semibold">Article Configuration</h1>
+          {!isSignedIn && (
+            <span className="text-xs text-red-500 bg-red-50 px-2 py-1 rounded">
+              Sign in required
+            </span>
+          )}
+        </div>
+
+        <p className="mt-6 text-sm font-medium">Article Topic</p>
+        <input
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          disabled={loading || !isSignedIn}
+          className="w-full p-2 px-3 mt-2 outline-none text-sm rounded-md border border-gray-300 disabled:opacity-70"
+          placeholder="The future of artificial intelligence..."
+          required
+        />
+
+        <p className="mt-4 text-sm font-medium">Article Length</p>
+        <div className="mt-3 flex gap-3 flex-wrap">
+          {articleLength.map((item) => (
+            <button
+              type="button"
+              key={item.length}
+              onClick={() => !loading && setSelectedLength(item)}
+              disabled={loading || !isSignedIn}
+              className={`text-xs px-4 py-1 border rounded-full transition-colors ${
+                selectedLength.length === item.length
+                  ? 'bg-blue-50 text-blue-700 border-blue-200'
+                  : 'text-gray-500 border-gray-300 hover:border-gray-400'
+              } ${loading || !isSignedIn ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}
+            >
+              {item.text}
+            </button>
+          ))}
+        </div>
+
+        <button
+          type="submit"
+          disabled={loading || !isSignedIn}
+          className="w-full flex justify-center items-center gap-2 bg-gradient-to-r from-[#226BFF] to-[#65ADFF] text-white px-4 py-2 mt-6 text-sm rounded-lg disabled:opacity-70 disabled:cursor-not-allowed transition-opacity"
+        >
+          {loading ? (
+            <>
+              <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              Generating...
+            </>
+          ) : !isSignedIn ? (
+            'Sign in to Generate'
+          ) : (
+            <>
+              <Edit className="w-5" />
+              Generate article
+            </>
+          )}
+        </button>
+      </form>
+
+      <div className="w-full max-w-lg p-4 bg-white rounded-lg flex flex-col border border-gray-200 min-h-96 max-h-[600px]">
+        <div className="flex items-center gap-3">
+          <Edit className="w-5 h-5 text-[#4A7AFF]" />
+          <h1 className="text-xl font-semibold">Generated article</h1>
+        </div>
+
+        {loading ? (
+          <div className="flex-1 flex flex-col justify-center items-center text-sm text-gray-400">
+            <span className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mb-2" />
+            Generating your article...
+          </div>
+        ) : !content ? (
+          <div className="flex-1 flex justify-center items-center text-sm text-gray-400">
+            {!isSignedIn ? 'Sign in to generate articles' : 'Enter a topic and generate an article'}
+          </div>
+        ) : (
+          <div className="mt-3 h-full overflow-y-scroll text-sm text-slate-600 reset-tw">
+            <Markdown>{content}</Markdown>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+export default WriteArticle
+
+#App.jsx
+import React from 'react'
+import { Route, Routes } from 'react-router-dom'
+import { ClerkProvider, SignedIn, SignedOut, RedirectToSignIn } from '@clerk/clerk-react'
+import Home from './pages/Home'
+import Layout from './pages/Layout'
+import Dashboard from './pages/Dashboard'
+import WriteArticle from './pages/WriteArticle'
+import BlogTitles from './pages/BlogTitles'
+import GenerateImages from './pages/GenerateImages'
+import RemoveBackground from './pages/RemoveBackground'
+import RemoveObject from './pages/RemoveObject'
+import ReviewResume from './pages/ReviewResume'
+import CodeGenerate from './pages/CodeGenerate'
+import SubtitleGenerate from './pages/SubtitleGenerate'
+import PPTMaker from './pages/PPTMaker'
+import VideoGenerate from './pages/VideoGenerate'
+import Community from './pages/Community'
+import { Toaster } from 'react-hot-toast'
+
+const App = () => {
+  return (
+    <div>
+      <Toaster />
+      <Routes>
+        <Route path='/' element={<Home />} />
+        <Route path='/ai' element={<Layout />}>
+          <Route index element={<Dashboard />} />
+          <Route path='write-article' element={<WriteArticle />} />
+          <Route path='blog-title' element={<BlogTitles />} />
+          <Route path='generate-images' element={<GenerateImages />} />
+          <Route path='remove-background' element={<RemoveBackground />} />
+          <Route path='remove-object' element={<RemoveObject />} />
+          <Route path='review-resume' element={<ReviewResume />} />
+          <Route path='code-generation' element={<CodeGenerate />} />
+          <Route path='subtitle-creator' element={<SubtitleGenerate />} />
+          <Route path='ppt-maker' element={<PPTMaker />} />
+          <Route path='video-generator' element={<VideoGenerate />} />
+          <Route path='community' element={<Community />} />
+        </Route>
+      </Routes>
+    </div>
+  )
+}
+
+export default App
+
+#index.css
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@100..900&display=swap');
+@import "tailwindcss";
+
+*{
+    font-family: "Outfit", sans-serif;
+}
+
+@theme{
+    --color-primary: #5044E5;  
+}
+
+.reset-tw, .rest-tw *{
+    all:revert !important;
+}
+
+.cl-drawerRoot{
+    z-index: 10;
+}
+
+#Main.jsx
+
+import { createRoot } from 'react-dom/client'
+import './index.css'
+import App from './App.jsx'
+import { BrowserRouter } from 'react-router-dom'
+import { ClerkProvider } from '@clerk/clerk-react'
+
+
+// Import your Publishable Key
+const PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY
+
+if (!PUBLISHABLE_KEY) {
+  throw new Error('Missing Publishable Key')
+}
+
+createRoot(document.getElementById('root')).render(
+      <ClerkProvider publishableKey={PUBLISHABLE_KEY}>     
+        <BrowserRouter>
+              <App />
+  </BrowserRouter>,
+    </ClerkProvider>
+)
+
+
+
+##.env
+VITE_CLERK_PUBLISHABLE_KEY=pk_test_ZnVubnktbGFiLTc1LmNsZXJrLmFjY291bnRzLmRldiQ
+VITE_BASE_URL=http://localhost:3000
+
