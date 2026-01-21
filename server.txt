@@ -1,0 +1,582 @@
+##Cloudinary.js
+import { v2 as cloudinary } from "cloudinary";
+
+const connectCloudinary = async () => {
+  cloudinary.config({
+    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+    api_key: process.env.CLOUDINARY_API_KEY,
+    api_secret: process.env.CLOUDINARY_API_SECRET,
+  });
+};
+
+export default connectCloudinary;
+
+
+##db.js
+import {neon} from '@neondatabase/serverless'
+
+const sql = neon(`${process.env.DATABASE_URL}`);
+
+export default sql; 
+
+##multer.js
+import multer from "multer";
+
+const storage = multer.diskStorage({});
+
+export const upload = multer({storage})
+
+##aiController.js
+import { GoogleGenerativeAI } from "@google/generative-ai";
+import sql from "../configs/db.js";
+import axios from "axios";
+import { v2 as cloudinary } from "cloudinary";
+import fs from "fs";
+import FormData from "form-data";
+import { createRequire } from "module";
+
+const require = createRequire(import.meta.url);
+const pdfParse = require("pdf-parse");
+
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+
+/* -------------------------------------------------------------------------- */
+/*                              HELPER FUNCTION                                */
+/* -------------------------------------------------------------------------- */
+
+const extractGeminiText = (result) => {
+  try {
+    if (result?.response?.candidates?.[0]?.content?.parts) {
+      return result.response.candidates[0].content.parts
+        .map((p) => p.text)
+        .join("");
+    }
+    return result?.response?.text() || "";
+  } catch (error) {
+    console.error("Error extracting Gemini text:", error);
+    return "";
+  }
+};
+
+/* -------------------------------------------------------------------------- */
+/*                              CORE GENERATION                                */
+/* -------------------------------------------------------------------------- */
+
+const handleGeneration = async (req, res, type) => {
+  try {
+    const { prompt } = req.body;
+    
+    if (!prompt || prompt.trim().length < 3) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "Please enter a valid prompt (minimum 3 characters)" 
+      });
+    }
+
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+
+    // Create enhanced prompt based on type
+    let enhancedPrompt = prompt;
+    if (type === "article") {
+      const { length = 800 } = req.body;
+      enhancedPrompt = `Write a comprehensive article about "${prompt}". 
+        Article should be approximately ${length} words long.
+        Include:
+        1. Clear introduction
+        2. Main body with key points
+        3. Strong conclusion
+        4. Use markdown formatting (# for title, ## for headings)
+        Make it engaging and informative.`;
+    }
+
+    const result = await model.generateContent(enhancedPrompt);
+    const content = extractGeminiText(result);
+    
+    if (!content.trim()) {
+      return res.status(500).json({ 
+        success: false, 
+        message: "AI returned empty content" 
+      });
+    }
+
+    // Log to database if needed
+    if (req.userId) {
+      try {
+        await sql`
+          INSERT INTO creations (user_id, prompt, content, type)
+          VALUES (${req.userId}, ${prompt}, ${content}, ${type})
+        `;
+      } catch (dbError) {
+        console.error("Database error:", dbError);
+        // Continue even if DB fails
+      }
+    }
+
+    res.json({ 
+      success: true, 
+      content,
+      type,
+      wordCount: content.split(/\s+/).length
+    });
+  } catch (error) {
+    console.error(`${type} generation error:`, error);
+    
+    let errorMessage = "Failed to generate content";
+    if (error.message.includes("API_KEY_INVALID")) {
+      errorMessage = "AI service configuration error";
+    } else if (error.message.includes("quota")) {
+      errorMessage = "AI service quota exceeded";
+    } else if (error.message.includes("timeout")) {
+      errorMessage = "Request timeout. Please try again.";
+    }
+
+    res.status(500).json({ 
+      success: false, 
+      message: errorMessage,
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+};
+
+/* -------------------------------------------------------------------------- */
+/*                               TEXT ROUTES                                   */
+/* -------------------------------------------------------------------------- */
+
+export const generateArticle = (req, res) => {
+  handleGeneration(req, res, "article");
+};
+
+export const generateBlogTitle = (req, res) => {
+  handleGeneration(req, res, "blog-title");
+};
+
+export const generateCode = (req, res) => {
+  handleGeneration(req, res, "code");
+};
+
+export const generatePPT = (req, res) => {
+  handleGeneration(req, res, "ppt");
+};
+
+/* -------------------------------------------------------------------------- */
+/*                              VIDEO GENERATION                               */
+/* -------------------------------------------------------------------------- */
+
+export const generateVideo = async (req, res) => {
+  try {
+    const { prompt } = req.body;
+
+    if (!prompt) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "Prompt is required" 
+      });
+    }
+
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const enhancedPrompt = `Generate a video script about: "${prompt}"
+      Include:
+      1. Video title
+      2. Scene-by-scene description
+      3. Dialogue or voiceover text
+      4. Visual cues
+      5. Duration estimate`;
+    
+    const result = await model.generateContent(enhancedPrompt);
+    const content = extractGeminiText(result);
+
+    if (req.userId) {
+      try {
+        await sql`
+          INSERT INTO creations (user_id, prompt, content, type)
+          VALUES (${req.userId}, ${prompt}, ${content}, 'video')
+        `;
+      } catch (dbError) {
+        console.error("Database error:", dbError);
+      }
+    }
+
+    res.json({ 
+      success: true, 
+      content,
+      type: 'video'
+    });
+  } catch (error) {
+    console.error("Video generation error:", error);
+    res.status(500).json({ 
+      success: false, 
+      message: "Failed to generate video script" 
+    });
+  }
+};
+
+// [Keep the rest of your existing image, resume, and removal functions exactly as they are]
+/* -------------------------------------------------------------------------- */
+/*                              IMAGE GENERATION                               */
+/* -------------------------------------------------------------------------- */
+
+export const generateImage = async (req, res) => {
+  try {
+    const userId = req.userId;
+    const { prompt } = req.body;
+
+    if (!userId || !prompt) {
+      return res.status(400).json({ success: false, message: "Invalid request" });
+    }
+
+    const formData = new FormData();
+    formData.append("prompt", prompt);
+
+    const { data } = await axios.post(
+      "https://clipdrop-api.co/text-to-image/v1",
+      formData,
+      {
+        headers: {
+          "x-api-key": process.env.CLIPDROP_API_KEY,
+          ...formData.getHeaders(),
+        },
+        responseType: "arraybuffer",
+        timeout: 60000,
+      }
+    );
+
+    const base64 = `data:image/png;base64,${Buffer.from(data).toString("base64")}`;
+    const { secure_url } = await cloudinary.uploader.upload(base64);
+
+    await sql`
+      INSERT INTO creations (user_id, prompt, content, type)
+      VALUES (${userId}, ${prompt}, ${secure_url}, 'image')
+    `;
+
+    res.json({ success: true, content: secure_url });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+/* -------------------------------------------------------------------------- */
+/*                              RESUME REVIEW                                  */
+/* -------------------------------------------------------------------------- */
+
+export const resumeReview = async (req, res) => {
+  try {
+    const userId = req.userId;
+    const file = req.file;
+
+    if (!userId || !file) {
+      return res.status(400).json({ success: false, message: "Invalid request" });
+    }
+
+    const pdfData = await pdfParse(fs.readFileSync(file.path));
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+
+    const result = await model.generateContent(
+      `Review this resume and provide feedback:\n\n${pdfData.text}`
+    );
+
+    const content = extractGeminiText(result);
+
+    await sql`
+      INSERT INTO creations (user_id, prompt, content, type)
+      VALUES (${userId}, 'Resume Review', ${content}, 'resume-review')
+    `;
+
+    fs.existsSync(file.path) && fs.unlinkSync(file.path);
+    res.json({ success: true, content });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+/* -------------------------------------------------------------------------- */
+/*                        IMAGE BACKGROUND / OBJECT REMOVAL                    */
+/* -------------------------------------------------------------------------- */
+
+export const removeImageBackground = async (req, res) => {
+  try {
+    const userId = req.userId;
+    const image = req.file;
+
+    if (!userId || !image) {
+      return res.status(400).json({ success: false, message: "Invalid request" });
+    }
+
+    const { secure_url } = await cloudinary.uploader.upload(image.path, {
+      transformation: [{ effect: "background_removal" }],
+    });
+
+    fs.existsSync(image.path) && fs.unlinkSync(image.path);
+    res.json({ success: true, content: secure_url });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const removeImageObject = async (req, res) => {
+  try {
+    const userId = req.userId;
+    const { object } = req.body;
+    const image = req.file;
+
+    if (!userId || !image || !object) {
+      return res.status(400).json({ success: false, message: "Invalid request" });
+    }
+
+    const { public_id } = await cloudinary.uploader.upload(image.path);
+    const url = cloudinary.url(public_id, {
+      transformation: [{ effect: `gen_remove:${object}` }],
+    });
+
+    fs.existsSync(image.path) && fs.unlinkSync(image.path);
+    res.json({ success: true, content: url });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+##userController.js
+import sql from "../configs/db.js";
+
+
+export const getUserCreations = async (req, res)=>{
+    try {
+        const {userId} = req.auth()
+
+       const creations = await sql`SELECT * FROM creations WHERE user_id = ${userId} ORDER BY created_at DESC`;
+
+        res.json({ success: true, creations });
+    } catch (error) {
+        res.json({ success: false, message: error.message });
+    }
+}
+
+export const getPublishedCreations = async (req, res)=>{
+    try {
+
+       const creations = await sql`
+       SELECT * FROM creations WHERE publish = true ORDER BY created_at DESC`;
+
+        res.json({ success: true, creations });
+    } catch (error) {
+        res.json({ success: false, message: error.message });
+    }
+}
+
+export const toggleLikeCreation = async (req, res)=>{
+    try {
+
+        const {userId} = req.auth()
+        const {id} = req.body
+
+        const [creation] = await sql`SELECT * FROM creations WHERE id = ${id}`
+
+        if(!creation){
+            return res.json({ success: false, message: "Creation not found" })
+        }
+
+        const currentLikes = creation.likes;
+        const userIdStr = userId.toString();
+        let updatedLikes;
+        let message;
+
+        if(currentLikes.includes(userIdStr)){
+            updatedLikes = currentLikes.filter((user)=>user !== userIdStr);
+            message = 'Creation Unliked'
+        }else{
+            updatedLikes = [...currentLikes, userIdStr]
+            message = 'Creation Liked'
+        }
+
+        const formattedArray = `{${updatedLikes.join(',')}}`
+
+        await sql`UPDATE creations SET likes = ${formattedArray}::text[] WHERE id = ${id}`;
+
+        res.json({ success: true, message });
+    } catch (error) {
+        res.json({ success: false, message: error.message });
+    }
+}
+
+##auth.js
+import { clerkClient } from "@clerk/express";
+
+// Simple authentication middleware
+export const auth = async (req, res, next) => {
+  try {
+    // Get auth data from Clerk
+    const authData = req.auth;
+    
+    console.log('Auth middleware - Auth data:', {
+      userId: authData?.userId,
+      sessionId: authData?.sessionId,
+      hasAuth: !!authData
+    });
+
+    if (!authData?.userId) {
+      return res.status(401).json({ 
+        success: false, 
+        message: "Authentication required. Please sign in.",
+        code: "UNAUTHORIZED"
+      });
+    }
+
+    req.userId = authData.userId;
+    req.authData = authData;
+
+    // Optional: Get user details from Clerk
+    try {
+      const user = await clerkClient.users.getUser(authData.userId);
+      req.user = user;
+      
+      // Check free usage
+      const freeUsage = user.privateMetadata?.free_usage || 0;
+      
+      // If free usage is less than 5, allow and increment
+      if (freeUsage < 5) {
+        const newFreeUsage = freeUsage + 1;
+        await clerkClient.users.updateUser(authData.userId, {
+          privateMetadata: {
+            ...user.privateMetadata,
+            free_usage: newFreeUsage
+          }
+        });
+        req.free_usage = newFreeUsage;
+        req.remaining_free = 5 - newFreeUsage;
+        req.plan = 'free';
+      } else {
+        // Check if user has organization membership (premium)
+        const hasOrg = user.organizationMemberships?.length > 0;
+        
+        if (hasOrg) {
+          req.plan = 'premium';
+          req.free_usage = 0;
+          req.remaining_free = 0;
+        } else {
+          return res.status(402).json({
+            success: false,
+            message: "Free usage limit reached. Please upgrade to premium.",
+            limitReached: true,
+            free_usage: freeUsage
+          });
+        }
+      }
+    } catch (clerkError) {
+      console.error("Clerk user fetch error:", clerkError);
+      // Continue without user details if Clerk fails
+      req.plan = 'free';
+      req.free_usage = 0;
+    }
+
+    console.log('Auth middleware - User authorized:', {
+      userId: req.userId,
+      plan: req.plan,
+      free_usage: req.free_usage
+    });
+
+    next();
+  } catch (error) {
+    console.error("Auth middleware error:", error);
+    res.status(500).json({ 
+      success: false, 
+      message: "Authentication failed",
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+}
+
+##aiRoutes.js
+import express from "express";
+import { auth } from "../middlewares/auth.js";
+import { generateArticle, generateBlogTitle, generateImage, removeImageBackground, removeImageObject, resumeReview } from "../controllers/aiController.js";
+import { upload } from "../configs/multer.js";
+
+const aiRouter = express.Router();
+
+aiRouter.post('/generate-article', auth, generateArticle)
+aiRouter.post('/generate-blog-title', auth, generateBlogTitle)
+aiRouter.post('/generate-image', auth, generateImage)
+
+aiRouter.post('/remove-image-background', upload.single('image'), auth, removeImageBackground)
+
+aiRouter.post('/remove-image-object', upload.single('image'), auth, removeImageObject)
+
+aiRouter.post('/resume-review', upload.single('resume'), auth, resumeReview)
+
+export default aiRouter
+
+#userRoutes.js
+import express from  "express";
+import { auth } from "../middlewares/auth.js";
+import { getUserCreations , getPublishedCreations, toggleLikeCreation } from "../controllers/userController.js";
+
+const userRouter = express.Router();
+
+userRouter.get('/get-user-creations', auth,getUserCreations )
+userRouter.get('/get-published-creations', auth,getPublishedCreations)
+userRouter.post('/toggle-like-creations', auth,toggleLikeCreation )
+
+export default userRouter;
+
+##server.js
+import express from 'express';
+import cors from 'cors';
+import 'dotenv/config';
+import { clerkMiddleware } from '@clerk/express';
+import aiRouter from './routes/aiRoutes.js';
+import connectCloudinary from './configs/cloudinary.js';
+import userRouter from './routes/userRoutes.js';
+
+const app = express();
+
+await connectCloudinary();
+
+// Simple CORS - remove complex configuration
+app.use(cors());
+
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+// Clerk middleware
+app.use(clerkMiddleware());
+
+// Routes
+app.get('/', (req, res) => {
+  res.json({ message: 'Server is Live!' });
+});
+
+app.get('/health', (req, res) => {
+  res.json({ status: 'OK' });
+});
+
+// API routes
+app.use('/api/ai', aiRouter);
+app.use('/api/user', userRouter);
+
+// 404 handler
+app.use((req, res) => {
+  res.status(404).json({ error: 'Route not found' });
+});
+
+const PORT = process.env.PORT || 3000;
+
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+});
+
+##.env
+DATABASE_URL='postgresql://neondb_owner:npg_CQGm40BzMURi@ep-falling-salad-a8fuul8h-pooler.eastus2.azure.neon.tech/neondb?sslmode=require&channel_binding=require'
+
+CLERK_PUBLISHABLE_KEY=pk_test_ZnVubnktbGFiLTc1LmNsZXJrLmFjY291bnRzLmRldiQ
+CLERK_SECRET_KEY=sk_test_rF4vDK8xn9RB0YtLNHQ0SMiAtaxxhvcjntVK8fFfxT
+
+GEMINI_API_KEY=AIzaSyB9jv-nq1UbaBeM8Ty7VhFiM99dAhQl4XM
+#GEMINI_API_KEY=AIzaSyCcouRdFr0Fb-Z-H9aQfPya2nmhzFjAaao
+CLIPDROP_API_KEY=015fe4db6e3e70326992fb817536102cd983a8f0503034e5e3f0ad90f7be32e98a0ea94385302da2a76b11f0d52d9ae3
+
+CLOUDINARY_CLOUD_NAME=dms8tgydy
+CLOUDINARY_API_KEY=848453592168228
+CLOUDINARY_API_SECRET=caSrU19K0irvB44smBIMSRLuGzI
+
+# Optional: Add these for better debugging
+NODE_ENV=development
+FRONTEND_URL=http://localhost:5173
