@@ -15,7 +15,7 @@ This project demonstrates a clean and responsive **Sign In / Sign Up** flow impl
 - 📱 Fully responsive ..
 - ⚡ Built with Next.js App Router...
 
-----
+
 
 ## 🧱 Tech Stack.
 
