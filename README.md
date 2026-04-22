@@ -95,7 +95,10 @@ Loading & error states
 
 Unit tests
 
-
+📸 Preview
+Clean glassmorphism UI with animated transitions
+Password strength indicators
+Responsive & accessible
 
 📄 License
 MIT License – free to use and modify.
