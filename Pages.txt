@@ -145,7 +145,7 @@ const BlogTitles = () => {
           value={input}
           onChange={(e) => setInput(e.target.value)}
           className="w-full p-3 mt-2 text-sm rounded-lg border border-gray-300 outline-none placeholder:text-gray-400 focus:ring-2 focus:ring-[#D946EF] focus:border-[#D946EF] transition-all duration-200 ease-in-out"
-          placeholder="The Future of Artificial Intelligence..."
+          placeholder="The Future of Artificial Intelligence Verse ..."
           required
         />
 
@@ -235,6 +235,7 @@ const CodeGenerator = () => {
     'TypeScript',
     'Go',
     'Rust',
+    'Golang',
   ]
 
   const [selectedLang, setSelectedLang] = useState('JavaScript')
